@@ -27,7 +27,7 @@ def classify(t): t["intent"] = classify_intent(t["player_text"]); return t
 def retrieve(t): t["memories"] = recall(t["session_id"], t["character"], t["player_text"]); return t
 def assemble(t): t["prompt"] = build_prompt(t["character"], t["state"], t["memories"]); return t
 def respond(t):  t["reply"] = generate(t["prompt"], t["player_text"]); return t
-def score(t):    t["deltas"] = evaluate(t["character"], t["player_text"], t["reply"], t["state"]); return t
+def score(t):    t["deltas"] = evaluate(t["character"], t["player_text"], t["reply"], t["state"], t["intent"]); return t
 def commit(t):   t["state"] = apply(t["state"], t["character"], t["deltas"]); remember(t["session_id"], t["character"], f'Player: "{t["player_text"]}" | {t["character"]}: "{t["reply"]}"', t["turn"]); return t
 
 g = StateGraph(Turn)
@@ -47,10 +47,16 @@ turn_graph = g.compile()
 def classify_intent(player_text):
     """Cheap, fast call. Returns one intent label used to steer behavior."""
     user = (
-        'Classify the player\'s message in a detective game into ONE intent. '
-        f'Message: "{player_text}". '
-        'Return ONLY JSON: {"intent": "<small_talk | probe_topic | accusation | '
-        'request | threat>"}'
+        'Classify the player\'s message to a character in a detective game into ONE intent. '
+        f'Message: "{player_text}". Intents: '
+        '"small_talk" (greetings, chit-chat); '
+        '"probe_topic" (pressing the character to reveal information); '
+        '"share_theory" (player shares a suspicion or theory about the disappearances, '
+        'or about someone OTHER than the listener — confiding, trying to ally); '
+        '"accuse_character" (player accuses, blames, or confronts the PERSON THEY ARE TALKING TO); '
+        '"threat" (player threatens the listener); '
+        '"request" (player asks the character to do something). '
+        'Return ONLY JSON: {"intent": "<one of those>"}'
     )
     try:
         resp = client.chat.completions.create(

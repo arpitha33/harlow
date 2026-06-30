@@ -31,26 +31,40 @@ _EVAL_SYSTEM = (
 )
 
 
-def evaluate(character, player_text, reply, state):
+def evaluate(character, player_text, reply, state, intent="small_talk"):
     """
     A SEPARATE, cheap model call whose only job is to score the exchange.
-    We never let the character model report its own trust changes — it drifts.
+    It judges by what the PLAYER did, not by how politely the character replied —
+    several characters here are warm on the surface while staying guarded.
     Returns a dict of deltas.
     """
     rel = state["relationships"][character]
-    user = f"""Character: {character}
-Their current trust in the player: {rel['trust']}/100
-Their current wariness (suspicion): {rel['suspicion']}/100
+    user = f"""You are scoring how {character}'s private feelings TOWARD THE PLAYER
+changed after this exchange. Trust and wariness belong to {character} and are driven
+by what the PLAYER did — NOT by how warmly {character} replied. Many people in this
+town stay friendly on the surface even when guarded, so do NOT read a warm or
+reassuring reply as proof the relationship improved.
 
+{character}'s current trust in the player: {rel['trust']}/100
+{character}'s current wariness (suspicion): {rel['suspicion']}/100
+
+The player's intent this turn was classified as: {intent}
 The player said: "{player_text}"
 {character} replied: "{reply}"
 
-Score the effect of this exchange. Return ONLY a JSON object of this shape:
-{{"trust_change": <integer from -10 to 10>,
-  "suspicion_change": <integer from -10 to 10>}}
+Scoring rules — judge mainly by the PLAYER's words:
+- Warmth, honesty, cooperation, or offering to help -> trust UP, suspicion DOWN.
+- The player confiding a suspicion about someone OTHER than {character}
+  (for example, naming another townsperson as involved) is the player trying to
+  ALLY with {character}. For someone who fears the same things, this usually
+  raises trust. Do NOT treat it as an attack on {character}.
+- Accusing, threatening, blaming, or aggressively prying at {character} THEMSELVES
+  -> trust DOWN, suspicion UP.
+- Neutral small talk -> little or no change.
 
-Warmth, honesty, and shared vulnerability raise trust. Pressure, prying, or
-threats raise suspicion."""
+Return ONLY a JSON object of this shape:
+{{"trust_change": <integer from -10 to 10>,
+  "suspicion_change": <integer from -10 to 10>}}"""
 
     resp = client.chat.completions.create(
         model=SMALL_MODEL,
@@ -68,7 +82,6 @@ threats raise suspicion."""
             "suspicion_change": int(d.get("suspicion_change", 0)),
         }
     except Exception:
-        # If parsing ever fails, change nothing rather than crash.
         return {"trust_change": 0, "suspicion_change": 0}
 
 
