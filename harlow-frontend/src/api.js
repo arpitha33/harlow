@@ -1,43 +1,18 @@
-// Talks to the FastAPI backend. The backend runs on port 8000.
-// Endpoints (from main.py):
-//   POST /session/new  -> { session_id, state }
-//   POST /message      -> { reply, state, intent, ending }
-//   POST /advance-day  -> { state, ending }
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
-const BASE = "http://localhost:8000";
-
-async function post(path, body) {
-  let res;
-  try {
-    res = await fetch(BASE + path, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body || {}),
-    });
-  } catch (networkErr) {
-    // fetch throws (not an HTTP error) when the server is unreachable.
-    throw new Error(
-      "Can't reach the backend at " + BASE +
-      ". Is the uvicorn server running in the other terminal?"
-    );
-  }
-  if (!res.ok) {
-    const detail = await res.text();
-    throw new Error(path + " failed (" + res.status + "): " + detail);
-  }
-  return res.json();
+export async function newSession() {
+  const res = await fetch(`${API_URL}/session/new`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  })
+  return res.json()  // { session_id, state }
 }
 
-export function newSession() {
-  return post("/session/new", {});
-}
-
-export function sendMessage(sessionId, character, text) {
-  return post("/message", { session_id: sessionId, character, text });
-}
-
-// /advance-day reuses the message request model on the backend,
-// so character and text must be present even though it ignores them.
-export function advanceDay(sessionId) {
-  return post("/advance-day", { session_id: sessionId, character: "system", text: "" });
+export async function sendMessage(sessionId, character, text) {
+  const res = await fetch(`${API_URL}/message`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_id: sessionId, character, text }),
+  })
+  return res.json()  // { reply, state }
 }
