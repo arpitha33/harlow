@@ -16,3 +16,11 @@ export async function sendMessage(sessionId, character, text) {
   })
   return res.json()  // { reply, state }
 }
+
+export function advanceDay(sessionId) {
+  return fetch(`${API_URL}/advance-day`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_id: sessionId, character: 'system', text: '' }),
+  }).then(res => res.json()); // { state, ending }
+}
