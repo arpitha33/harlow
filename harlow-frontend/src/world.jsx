@@ -5,7 +5,7 @@ import { EffectComposer, ChromaticAberration, Noise, Vignette, wrapEffect } from
 import { Effect } from "postprocessing";
 import * as THREE from "three";
 import CaseBoard from "./CaseBoard.jsx";
-import { newSession, sendMessage } from "./api.js";
+import { newSession, sendMessage, advanceDay } from "./api.js";
 
 // ---- slight fisheye / barrel distortion ------------------------------------
 const fisheyeShader = `
@@ -417,6 +417,8 @@ export default function World() {
   const [panel, setPanel] = useState(null);
   const [chatChar, setChatChar] = useState(null);
   const [gameState, setGameState] = useState(null);
+  const [ending, setEnding] = useState(null);
+  const [dayLoading, setDayLoading] = useState(false);
   const [sessionId, setSessionId] = useState(null);
   const [messages, setMessages] = useState({});
 
@@ -456,6 +458,19 @@ export default function World() {
     setLocationId(id);
     setPanel(null);
   }
+  async function handleAdvanceDay() {
+  if (!sessionId || dayLoading) return;
+  setDayLoading(true);
+  try {
+    const data = await advanceDay(sessionId);
+    setGameState(data.state);
+    if (data.ending) setEnding(data.ending);
+  } catch (e) {
+    console.error("advance-day failed:", e);
+  } finally {
+    setDayLoading(false);
+  }
+}
 
   const nearLabel = location.interactables.find((i) => i.id === near)?.label;
 
@@ -508,6 +523,12 @@ export default function World() {
             fontFamily: "monospace", fontSize: 13, letterSpacing: 1, padding: "6px 12px",
             background: "transparent", color: "#d8a23f", border: "1px solid #3a2f1e",
             borderRadius: 4, cursor: "pointer", zIndex: 51 }}>CLOSE</button>
+            <button onClick={handleAdvanceDay} disabled={dayLoading} style={{ position: "absolute", top: 14, right: 100,
+  fontFamily: "monospace", fontSize: 13, letterSpacing: 1, padding: "6px 12px",
+  background: "transparent", color: dayLoading ? "#5a4f3b" : "#d8a23f", border: "1px solid #3a2f1e",
+  borderRadius: 4, cursor: dayLoading ? "default" : "pointer", zIndex: 51 }}>
+  {dayLoading ? "..." : `Day ${gameState?.day ?? "?"} — Sleep / Advance`}
+</button>
           <div style={{ flex: 1, overflow: "hidden" }}>
             {gameState
               ? <CaseBoard state={gameState} />
@@ -543,6 +564,14 @@ export default function World() {
           onClose={() => setPanel(null)}
         />
       )}
+      {ending && (
+  <div style={{ position: "fixed", inset: 0, background: "#0a0807", zIndex: 100,
+    display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column",
+    color: "#e8dcc0", fontFamily: "monospace", textAlign: "center", padding: 40 }}>
+    <div style={{ fontSize: 12, letterSpacing: 3, color: "#8a7d63", marginBottom: 12 }}>ENDING REACHED</div>
+    <div style={{ fontSize: 28, color: "#d8a23f" }}>{ending}</div>
+  </div>
+)}
     </div>
   );
 }
