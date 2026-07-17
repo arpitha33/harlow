@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const API_URL = import.meta.env.VITE_API_URL || 'https://harlow-backend.onrender.com'
 
 export async function newSession() {
   const res = await fetch(`${API_URL}/session/new`, {
