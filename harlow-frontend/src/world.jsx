@@ -5,7 +5,27 @@ import { EffectComposer, ChromaticAberration, Noise, Vignette, wrapEffect } from
 import { Effect } from "postprocessing";
 import * as THREE from "three";
 import CaseBoard from "./CaseBoard.jsx";
-import { newSession, sendMessage, advanceDay } from "./api.js";
+import { newSession, sendMessage, advanceDay, setFlag } from "./api.js";
+
+const SAVE_KEY = "harlow_save_v1";
+
+function loadSave() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function writeSave(data) {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+  } catch (e) {
+    console.error("save failed:", e);
+  }
+}
 
 // ---- slight fisheye / barrel distortion ------------------------------------
 const fisheyeShader = `
@@ -161,22 +181,6 @@ function NpcModel({ url, x, z, floorY, rotY = 0, height = 1.8, yOffset = 0, scal
       }
     });
   }, [scene]);
-
-  function AnimatedModel({ url, position, scale = 1 }) {
-  const { scene, animations } = useGLTF(url);
-  const mixer = useRef();
-  useEffect(() => {
-    if (animations.length) {
-      mixer.current = new THREE.AnimationMixer(scene);
-      animations.forEach((clip) => mixer.current.clipAction(clip).play());
-    }
-    scene.traverse((o) => {
-      if (o.isMesh) o.frustumCulled = false;
-    });
-  }, [scene, animations]);
-  useFrame((_, delta) => mixer.current?.update(delta));
-  return <primitive object={scene} position={position} scale={scale} />;
-}
 
   const fit = useMemo(() => {
     const box = new THREE.Box3().setFromObject(scene);
@@ -347,7 +351,7 @@ function Overlay({ title, children, onClose, wide }) {
   );
 }
 
-function ChatOverlay({ character, sessionId, messages, setMessages, onState, onClose }) {
+function ChatOverlay({ character, sessionId, messages, setMessages, onState, onClose, onTakeDeal }) {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const logRef = useRef();
@@ -396,6 +400,13 @@ function ChatOverlay({ character, sessionId, messages, setMessages, onState, onC
         ))}
         {loading && <div style={{ color: "#8a7d63", fontFamily: "monospace" }}>...</div>}
       </div>
+      {character === "briggs" && onTakeDeal && (
+        <button onClick={onTakeDeal} style={{ marginBottom: 10, fontFamily: "monospace", fontSize: 12,
+          letterSpacing: 1, padding: "9px 12px", background: "transparent", color: "#a05a5a",
+          border: "1px solid #3a2f1e", borderRadius: 4, cursor: "pointer", textAlign: "left" }}>
+          [ TAKE HIS DEAL — close the case, stay in Harlow ]
+        </button>
+      )}
       <div style={{ display: "flex", gap: 8 }}>
         <input value={text} onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") send(); }}
@@ -429,10 +440,23 @@ export default function World() {
   pausedRef.current = panel !== null;
 
   useEffect(() => {
-    newSession()
-      .then((data) => { setSessionId(data.session_id); setGameState(data.state); })
-      .catch((err) => console.error("Session failed:", err));
+    const saved = loadSave();
+    if (saved && saved.sessionId) {
+      setSessionId(saved.sessionId);
+      setGameState(saved.gameState);
+      setLocationId(saved.locationId || "home");
+      setMessages(saved.messages || {});
+    } else {
+      newSession()
+        .then((data) => { setSessionId(data.session_id); setGameState(data.state); })
+        .catch((err) => console.error("Session failed:", err));
+    }
   }, []);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    writeSave({ sessionId, gameState, locationId, messages });
+  }, [sessionId, gameState, locationId, messages]);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -458,21 +482,65 @@ export default function World() {
     setLocationId(id);
     setPanel(null);
   }
-  async function handleAdvanceDay() {
-  if (!sessionId || dayLoading) return;
-  setDayLoading(true);
-  try {
-    const data = await advanceDay(sessionId);
-    setGameState(data.state);
-    if (data.ending) setEnding(data.ending);
-  } catch (e) {
-    console.error("advance-day failed:", e);
-  } finally {
-    setDayLoading(false);
+
+  async function startNewGame() {
+    if (!window.confirm("Start a new game? This clears your current save.")) return;
+    try {
+      const data = await newSession();
+      setSessionId(data.session_id);
+      setGameState(data.state);
+      setMessages({});
+      setLocationId("home");
+      setEnding(null);
+      writeSave({ sessionId: data.session_id, gameState: data.state, locationId: "home", messages: {} });
+    } catch (e) {
+      console.error("New game failed:", e);
+    }
   }
-}
+
+  async function handleAdvanceDay() {
+    if (!sessionId || dayLoading) return;
+    setDayLoading(true);
+    try {
+      const data = await advanceDay(sessionId);
+      setGameState(data.state);
+      if (data.ending) setEnding(data.ending);
+    } catch (e) {
+      console.error("advance-day failed:", e);
+    } finally {
+      setDayLoading(false);
+    }
+  }
+
+  // Deterministic story actions -- bypass the LLM classifier entirely so
+  // these pivotal decisions don't depend on the model correctly inferring
+  // intent from freeform chat.
+  async function handleBroadcast() {
+    if (!sessionId) return;
+    if (!window.confirm("Send everything -- Ray's archive, Owen's documentation, the profile template -- to journalists and a federal tip line?")) return;
+    try {
+      const data = await setFlag(sessionId, "event", "broadcast_sent");
+      setGameState(data.state);
+      if (data.ending) setEnding(data.ending);
+    } catch (e) {
+      console.error("broadcast failed:", e);
+    }
+  }
+
+  async function handleTakeDeal() {
+    if (!sessionId) return;
+    if (!window.confirm("Take Briggs' deal -- close the case as unsolved and stay in Harlow?")) return;
+    try {
+      const data = await setFlag(sessionId, "event", "deal_with_briggs");
+      setGameState(data.state);
+      if (data.ending) setEnding(data.ending);
+    } catch (e) {
+      console.error("take-deal failed:", e);
+    }
+  }
 
   const nearLabel = location.interactables.find((i) => i.id === near)?.label;
+  const hasRayArchive = (gameState?.clues_found || []).includes("ray_archive");
 
   return (
     <div style={{ width: "100vw", height: "100vh", background: "#0a0807" }}>
@@ -529,6 +597,17 @@ export default function World() {
   borderRadius: 4, cursor: dayLoading ? "default" : "pointer", zIndex: 51 }}>
   {dayLoading ? "..." : `Day ${gameState?.day ?? "?"} — Sleep / Advance`}
 </button>
+            <button onClick={startNewGame} style={{ position: "absolute", top: 54, right: 18,
+  fontFamily: "monospace", fontSize: 12, letterSpacing: 1, padding: "6px 12px",
+  background: "transparent", color: "#a05a5a", border: "1px solid #3a2f1e",
+  borderRadius: 4, cursor: "pointer", zIndex: 51 }}>NEW GAME</button>
+            {hasRayArchive && (
+              <button onClick={handleBroadcast} style={{ position: "absolute", bottom: 20, right: 20,
+                fontFamily: "monospace", fontSize: 13, letterSpacing: 1, padding: "10px 16px",
+                background: "#d8a23f", color: "#15120d", border: "none", borderRadius: 4, cursor: "pointer", zIndex: 51 }}>
+                SEND THE EVIDENCE
+              </button>
+            )}
           <div style={{ flex: 1, overflow: "hidden" }}>
             {gameState
               ? <CaseBoard state={gameState} />
@@ -562,6 +641,7 @@ export default function World() {
           setMessages={setMessages}
           onState={setGameState}
           onClose={() => setPanel(null)}
+          onTakeDeal={handleTakeDeal}
         />
       )}
       {ending && (

@@ -6,13 +6,14 @@ Endpoints:
   POST /session/new    -> { session_id, state }
   POST /message        -> { reply, state, ending? }
   POST /advance-day    -> { state, ending? }
+  POST /set-flag       -> { state, ending? }
 """
 import uuid
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from state import new_state
+from state import new_state, set_flag
 from pipeline import take_turn
 from director import advance_day, resolve_ending, SCENES
 
@@ -38,6 +39,12 @@ class MessageReq(BaseModel):
     session_id: str
     character: str
     text: str
+
+
+class SetFlagReq(BaseModel):
+    session_id: str
+    kind: str    # "clue" or "event"
+    value: str
 
 
 def _ending_if_over(state):
@@ -75,5 +82,18 @@ def advance(req: MessageReq):
     if req.session_id not in SESSIONS:
         raise HTTPException(404, "Unknown session.")
     state = advance_day(SESSIONS[req.session_id])
+    SESSIONS[req.session_id] = state
+    return {"state": state, "ending": _ending_if_over(state)}
+
+
+@app.post("/set-flag")
+def set_flag_endpoint(req: SetFlagReq):
+    """Deterministically stamp a clue or world_event into a session's state,
+    bypassing the LLM classifier. Used for explicit, story-critical player
+    actions in the 3D world (e.g. sending the evidence, taking Briggs' deal)
+    that should not depend on the model correctly inferring intent from chat."""
+    if req.session_id not in SESSIONS:
+        raise HTTPException(404, "Unknown session.")
+    state = set_flag(SESSIONS[req.session_id], req.kind, req.value)
     SESSIONS[req.session_id] = state
     return {"state": state, "ending": _ending_if_over(state)}

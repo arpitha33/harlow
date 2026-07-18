@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || 'https://harlow-backend.onrender.com'
+const API_URL = (import.meta.env.VITE_API_URL || 'https://harlow-backend.onrender.com').replace(/\/+$/, '')
 
 export async function newSession() {
   const res = await fetch(`${API_URL}/session/new`, {
@@ -22,5 +22,13 @@ export function advanceDay(sessionId) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ session_id: sessionId, character: 'system', text: '' }),
+  }).then(res => res.json()); // { state, ending }
+}
+
+export function setFlag(sessionId, kind, value) {
+  return fetch(`${API_URL}/set-flag`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_id: sessionId, kind, value }),
   }).then(res => res.json()); // { state, ending }
 }

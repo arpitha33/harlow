@@ -102,3 +102,15 @@ def apply(state, character, deltas):
         state["clues_found"].append("brass_key")
 
     return state
+
+
+def set_flag(state, kind, value):
+    """Directly stamp a clue or world_event into state from an explicit
+    player action in the 3D world -- bypasses the LLM classifier entirely
+    so story-critical decisions (broadcast, taking Briggs' deal, entering
+    the facility, etc.) are deterministic instead of inferred from chat."""
+    if kind == "clue" and value not in state["clues_found"]:
+        state["clues_found"].append(value)
+    elif kind == "event" and value not in state["world_events"]:
+        state["world_events"].append(value)
+    return state
