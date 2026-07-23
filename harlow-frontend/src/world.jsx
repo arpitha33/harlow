@@ -351,7 +351,7 @@ function Overlay({ title, children, onClose, wide }) {
   );
 }
 
-function ChatOverlay({ character, sessionId, messages, setMessages, onState, onClose, onTakeDeal, onAskJoin, onFixCar, day, worldEvents, cluesFound, relationships }) {
+function ChatOverlay({ character, sessionId, messages, setMessages, onState, onClose, onTakeDeal, onAskJoin, onFixCar, day, worldEvents, cluesFound, relationships, fixingCar }) {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const logRef = useRef();
@@ -412,10 +412,10 @@ function ChatOverlay({ character, sessionId, messages, setMessages, onState, onC
         }
         if (owenTrust >= 50) {
           return (
-            <button onClick={onFixCar} style={{ marginBottom: 10, fontFamily: "monospace", fontSize: 12,
-              letterSpacing: 1, padding: "9px 12px", background: "transparent", color: "#d8a23f",
-              border: "1px solid #3a2f1e", borderRadius: 4, cursor: "pointer", textAlign: "left" }}>
-              [ ASK OWEN TO FIX THE CAR ]
+            <button onClick={onFixCar} disabled={fixingCar} style={{ marginBottom: 10, fontFamily: "monospace", fontSize: 12,
+              letterSpacing: 1, padding: "9px 12px", background: "transparent", color: fixingCar ? "#5a4f3b" : "#d8a23f",
+              border: "1px solid #3a2f1e", borderRadius: 4, cursor: fixingCar ? "default" : "pointer", textAlign: "left" }}>
+              {fixingCar ? "..." : "[ ASK OWEN TO FIX THE CAR ]"}
             </button>
           );
         }
@@ -492,6 +492,7 @@ export default function World() {
   const [dayLoading, setDayLoading] = useState(false);
   const [sessionId, setSessionId] = useState(null);
   const [messages, setMessages] = useState({});
+  const [fixingCar, setFixingCar] = useState(false);
 
   const nearRef = useRef(null);
   const pausedRef = useRef(false);
@@ -626,12 +627,21 @@ export default function World() {
   }
 
   async function handleFixCar() {
-    if (!sessionId) return;
+    if (!sessionId || fixingCar) return;
+    setFixingCar(true);
+    const playerLine = "I think we're going to need a way out of here. Can you fix up the car?";
+    setMessages((m) => ({ ...m, owen: [...(m.owen || []), { role: "player", text: playerLine }] }));
     try {
-      const data = await setFlag(sessionId, "clue", "car_fixed");
-      setGameState(data.state);
+      const chatData = await sendMessage(sessionId, "owen", playerLine);
+      setMessages((m) => ({ ...m, owen: [...(m.owen || []), { role: "npc", text: chatData.reply }] }));
+      const flagData = await setFlag(sessionId, "clue", "car_fixed");
+      setGameState(flagData.state);
+      if (flagData.ending) setEnding(flagData.ending);
     } catch (e) {
       console.error("fix-car failed:", e);
+      setMessages((m) => ({ ...m, owen: [...(m.owen || []), { role: "npc", text: "(...no answer. is the backend running?)" }] }));
+    } finally {
+      setFixingCar(false);
     }
   }
 
@@ -791,6 +801,7 @@ export default function World() {
           worldEvents={gameState?.world_events || []}
           cluesFound={gameState?.clues_found || []}
           relationships={gameState?.relationships || {}}
+          fixingCar={fixingCar}
         />
       )}
       {ending && (
