@@ -351,7 +351,7 @@ function Overlay({ title, children, onClose, wide }) {
   );
 }
 
-function ChatOverlay({ character, sessionId, messages, setMessages, onState, onClose, onTakeDeal }) {
+function ChatOverlay({ character, sessionId, messages, setMessages, onState, onClose, onTakeDeal, onAskJoin, onFixCar, day, worldEvents, cluesFound, relationships }) {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const logRef = useRef();
@@ -400,6 +400,40 @@ function ChatOverlay({ character, sessionId, messages, setMessages, onState, onC
         ))}
         {loading && <div style={{ color: "#8a7d63", fontFamily: "monospace" }}>...</div>}
       </div>
+      {character === "owen" && onFixCar && (() => {
+        const carFixed = cluesFound?.includes("car_fixed");
+        const owenTrust = relationships?.owen?.trust ?? 0;
+        if (carFixed) {
+          return (
+            <div style={{ marginBottom: 10, fontFamily: "monospace", fontSize: 12, color: "#7a9e6a" }}>
+              [ the car is fixed ]
+            </div>
+          );
+        }
+        if (owenTrust >= 50) {
+          return (
+            <button onClick={onFixCar} style={{ marginBottom: 10, fontFamily: "monospace", fontSize: 12,
+              letterSpacing: 1, padding: "9px 12px", background: "transparent", color: "#d8a23f",
+              border: "1px solid #3a2f1e", borderRadius: 4, cursor: "pointer", textAlign: "left" }}>
+              [ ASK OWEN TO FIX THE CAR ]
+            </button>
+          );
+        }
+        return null;
+      })()}
+      {day >= 4 && cluesFound?.includes("car_fixed") && onAskJoin && (
+        worldEvents?.includes(`party_${character}`) ? (
+          <div style={{ marginBottom: 10, fontFamily: "monospace", fontSize: 12, color: "#7a9e6a" }}>
+            [ {CHAR_NAMES[character] || character} is coming with you ]
+          </div>
+        ) : (
+          <button onClick={() => onAskJoin(character)} style={{ marginBottom: 10, fontFamily: "monospace", fontSize: 12,
+            letterSpacing: 1, padding: "9px 12px", background: "transparent", color: "#d8a23f",
+            border: "1px solid #3a2f1e", borderRadius: 4, cursor: "pointer", textAlign: "left" }}>
+            [ ASK {(CHAR_NAMES[character] || character).toUpperCase()} TO COME WITH YOU ]
+          </button>
+        )
+      )}
       {character === "briggs" && onTakeDeal && (
         <button onClick={onTakeDeal} style={{ marginBottom: 10, fontFamily: "monospace", fontSize: 12,
           letterSpacing: 1, padding: "9px 12px", background: "transparent", color: "#a05a5a",
@@ -422,7 +456,33 @@ function ChatOverlay({ character, sessionId, messages, setMessages, onState, onC
   );
 }
 
+function StartScreen({ onNewGame, onLoadGame, hasSave }) {
+  return (
+    <div style={{ width: "100vw", height: "100vh", background: "#0a0807",
+      display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column",
+      fontFamily: "monospace" }}>
+      <div style={{ fontSize: 48, letterSpacing: 10, color: "#d8a23f", marginBottom: 8 }}>HARLOW</div>
+      <div style={{ fontSize: 12, letterSpacing: 3, color: "#8a7d63", marginBottom: 50 }}>
+        SOMETHING IS WRONG WITH THIS TOWN
+      </div>
+      <button onClick={onNewGame} style={{ width: 260, marginBottom: 14, fontFamily: "monospace", fontSize: 14,
+        letterSpacing: 2, padding: "14px 20px", background: "#d8a23f", color: "#15120d",
+        border: "none", borderRadius: 4, cursor: "pointer" }}>
+        NEW GAME
+      </button>
+      <button onClick={onLoadGame} disabled={!hasSave} style={{ width: 260, fontFamily: "monospace", fontSize: 14,
+        letterSpacing: 2, padding: "14px 20px", background: "transparent",
+        color: hasSave ? "#e8dcc0" : "#4a4030", border: "1px solid #3a2f1e", borderRadius: 4,
+        cursor: hasSave ? "pointer" : "not-allowed" }}>
+        LOAD GAME
+      </button>
+    </div>
+  );
+}
+
 export default function World() {
+  const [screen, setScreen] = useState("start"); // "start" | "game"
+  const [hasSave, setHasSave] = useState(false);
   const [locationId, setLocationId] = useState("home");
   const [near, setNear] = useState(null);
   const [panel, setPanel] = useState(null);
@@ -441,16 +501,7 @@ export default function World() {
 
   useEffect(() => {
     const saved = loadSave();
-    if (saved && saved.sessionId) {
-      setSessionId(saved.sessionId);
-      setGameState(saved.gameState);
-      setLocationId(saved.locationId || "home");
-      setMessages(saved.messages || {});
-    } else {
-      newSession()
-        .then((data) => { setSessionId(data.session_id); setGameState(data.state); })
-        .catch((err) => console.error("Session failed:", err));
-    }
+    setHasSave(!!(saved && saved.sessionId));
   }, []);
 
   useEffect(() => {
@@ -493,9 +544,44 @@ export default function World() {
       setLocationId("home");
       setEnding(null);
       writeSave({ sessionId: data.session_id, gameState: data.state, locationId: "home", messages: {} });
+      setHasSave(true);
     } catch (e) {
       console.error("New game failed:", e);
     }
+  }
+
+  async function startNewGameFromMenu() {
+    try {
+      const data = await newSession();
+      setSessionId(data.session_id);
+      setGameState(data.state);
+      setMessages({});
+      setLocationId("home");
+      setEnding(null);
+      writeSave({ sessionId: data.session_id, gameState: data.state, locationId: "home", messages: {} });
+      setHasSave(true);
+      setScreen("game");
+    } catch (e) {
+      console.error("New game failed:", e);
+    }
+  }
+
+  function loadGameFromMenu() {
+    const saved = loadSave();
+    if (!saved || !saved.sessionId) return;
+    setSessionId(saved.sessionId);
+    setGameState(saved.gameState);
+    setLocationId(saved.locationId || "home");
+    setMessages(saved.messages || {});
+    setEnding(null);
+    setScreen("game");
+  }
+
+  function handleSaveGame() {
+    if (!sessionId) return;
+    writeSave({ sessionId, gameState, locationId, messages });
+    setHasSave(true);
+    window.alert("Game saved.");
   }
 
   async function handleAdvanceDay() {
@@ -539,11 +625,57 @@ export default function World() {
     }
   }
 
+  async function handleFixCar() {
+    if (!sessionId) return;
+    try {
+      const data = await setFlag(sessionId, "clue", "car_fixed");
+      setGameState(data.state);
+    } catch (e) {
+      console.error("fix-car failed:", e);
+    }
+  }
+
+  async function handleAskJoin(character) {
+    if (!sessionId) return;
+    try {
+      const data = await setFlag(sessionId, "event", `party_${character}`);
+      setGameState(data.state);
+    } catch (e) {
+      console.error("ask-join failed:", e);
+    }
+  }
+
+  async function handleLeaveTonight() {
+    const events = gameState?.world_events || [];
+    const companions = events
+      .filter((e) => e.startsWith("party_"))
+      .map((e) => CHAR_NAMES[e.replace("party_", "")] || e);
+    const names = companions.length ? companions.join(", ") : "just you and Owen";
+    try {
+      const data = await setFlag(sessionId, "event", "escaped_with_party");
+      setGameState(data.state);
+    } catch (e) {
+      console.error("escape flag failed:", e);
+    }
+    setEnding({
+      id: "escape",
+      scene: `Night falls on Harlow. You load the car with ${names}, and pull out onto the logging road. The town's lights shrink behind you, then disappear behind the trees. You escaped.`,
+    });
+  }
+
   const nearLabel = location.interactables.find((i) => i.id === near)?.label;
   const hasRayArchive = (gameState?.clues_found || []).includes("ray_archive");
+  const canLeaveTonight =
+    (gameState?.day || 0) >= 5 &&
+    (gameState?.clues_found || []).includes("car_fixed") &&
+    (gameState?.world_events || []).includes("party_owen");
 
   return (
     <div style={{ width: "100vw", height: "100vh", background: "#0a0807" }}>
+      {screen === "start" ? (
+        <StartScreen onNewGame={startNewGameFromMenu} onLoadGame={loadGameFromMenu} hasSave={hasSave} />
+      ) : (
+      <>
       <Canvas camera={{ position: location.spawn, fov: 75 }}>
       <ambientLight intensity={location.ambient} />
         <directionalLight position={[10, 6, -10]} intensity={1.0} color="#ffd9b0" />
@@ -601,11 +733,22 @@ export default function World() {
   fontFamily: "monospace", fontSize: 12, letterSpacing: 1, padding: "6px 12px",
   background: "transparent", color: "#a05a5a", border: "1px solid #3a2f1e",
   borderRadius: 4, cursor: "pointer", zIndex: 51 }}>NEW GAME</button>
+            <button onClick={handleSaveGame} style={{ position: "absolute", top: 54, right: 130,
+  fontFamily: "monospace", fontSize: 12, letterSpacing: 1, padding: "6px 12px",
+  background: "transparent", color: "#7a9e6a", border: "1px solid #3a2f1e",
+  borderRadius: 4, cursor: "pointer", zIndex: 51 }}>SAVE GAME</button>
             {hasRayArchive && (
               <button onClick={handleBroadcast} style={{ position: "absolute", bottom: 20, right: 20,
                 fontFamily: "monospace", fontSize: 13, letterSpacing: 1, padding: "10px 16px",
                 background: "#d8a23f", color: "#15120d", border: "none", borderRadius: 4, cursor: "pointer", zIndex: 51 }}>
                 SEND THE EVIDENCE
+              </button>
+            )}
+            {canLeaveTonight && (
+              <button onClick={handleLeaveTonight} style={{ position: "absolute", bottom: 20, left: 20,
+                fontFamily: "monospace", fontSize: 13, letterSpacing: 1, padding: "10px 16px",
+                background: "#d8a23f", color: "#15120d", border: "none", borderRadius: 4, cursor: "pointer", zIndex: 51 }}>
+                LEAVE HARLOW TONIGHT
               </button>
             )}
           <div style={{ flex: 1, overflow: "hidden" }}>
@@ -642,6 +785,12 @@ export default function World() {
           onState={setGameState}
           onClose={() => setPanel(null)}
           onTakeDeal={handleTakeDeal}
+          onFixCar={handleFixCar}
+          onAskJoin={handleAskJoin}
+          day={gameState?.day || 0}
+          worldEvents={gameState?.world_events || []}
+          cluesFound={gameState?.clues_found || []}
+          relationships={gameState?.relationships || {}}
         />
       )}
       {ending && (
@@ -649,9 +798,12 @@ export default function World() {
     display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column",
     color: "#e8dcc0", fontFamily: "monospace", textAlign: "center", padding: 40 }}>
     <div style={{ fontSize: 12, letterSpacing: 3, color: "#8a7d63", marginBottom: 12 }}>ENDING REACHED</div>
-    <div style={{ fontSize: 28, color: "#d8a23f" }}>{ending}</div>
+    <div style={{ fontSize: 28, color: "#d8a23f", marginBottom: 20 }}>{(ending.id || "").toUpperCase()}</div>
+    <div style={{ fontSize: 16, lineHeight: 1.7, maxWidth: 640 }}>{ending.scene}</div>
   </div>
 )}
+      </>
+      )}
     </div>
   );
 }
