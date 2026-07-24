@@ -251,12 +251,21 @@ function AnimatedModel({ url, position, scale = 1, rotation = [0, 0, 0] }) {
   return <primitive object={scene} position={position} scale={scale} rotation={rotation} />;
 }
 
-function Player({ location, nearRef, setNear, pausedRef }) {
+function playFootstepSound(volume) {
+  try {
+    const a = new Audio("/audio/footsteps.mp3");
+    a.volume = volume;
+    a.play().catch(() => {});
+  } catch (e) {}
+}
+
+function Player({ location, nearRef, setNear, pausedRef, sfxVolume }) {
   const { camera, scene } = useThree();
   const keys = useRef({});
   const ray = useRef(new THREE.Raycaster());
   const bobPhase = useRef(0);
   const bobAmount = useRef(0);
+  const lastStepIndex = useRef(0);
 
   useEffect(() => {
     const down = (e) => (keys.current[e.code] = true);
@@ -324,7 +333,14 @@ function Player({ location, nearRef, setNear, pausedRef }) {
     if (downHits.length && downHits[0].distance < 4) {
       const baseY = downHits[0].point.y + location.eye;
       bobAmount.current += ((moving ? 1 : 0) - bobAmount.current) * Math.min(1, delta * 10);
-      if (moving) bobPhase.current += delta * (running ? 14 : 9);
+      if (moving) {
+        bobPhase.current += delta * (running ? 14 : 9);
+        const stepIndex = Math.floor(bobPhase.current / Math.PI);
+        if (stepIndex !== lastStepIndex.current) {
+          lastStepIndex.current = stepIndex;
+          playFootstepSound(sfxVolume ?? 0.6);
+        }
+      }
       const bob = Math.sin(bobPhase.current) * BOB_AMP * bobAmount.current;
       camera.position.y = baseY + bob;
     }
@@ -555,7 +571,7 @@ function MenuItem({ label, onClick, disabled }) {
   );
 }
 
-function StartScreen({ onNewGame, onLoadGame, hasSave }) {
+function StartScreen({ onNewGame, onLoadGame, onOptions, hasSave }) {
   return (
     <div style={{ width: "100vw", height: "100vh", position: "relative", overflow: "hidden",
       fontFamily: "monospace" }}>
@@ -581,14 +597,52 @@ function StartScreen({ onNewGame, onLoadGame, hasSave }) {
         {hasSave && <MenuItem label="Continue" onClick={onLoadGame} />}
         <MenuItem label="New Game" onClick={onNewGame} />
         <MenuItem label="Load Game" onClick={onLoadGame} disabled={!hasSave} />
+        <MenuItem label="Options" onClick={onOptions} />
       </div>
     </div>
   );
 }
 
+function OptionsScreen({ musicVolume, setMusicVolume, sfxVolume, setSfxVolume, onBack }) {
+  return (
+    <div style={{ width: "100vw", height: "100vh", background: "#0a0807", position: "relative",
+      fontFamily: "monospace", display: "flex", alignItems: "center", justifyContent: "center",
+      flexDirection: "column" }}>
+      <div style={{ fontSize: 32, letterSpacing: 10, color: "#e8b64c", marginBottom: 50,
+        textShadow: "0 0 6px rgba(232,182,76,0.8), 0 0 20px rgba(216,130,30,0.4)" }}>
+        OPTIONS
+      </div>
+
+      <div style={{ width: 380, marginBottom: 28 }}>
+        <div style={{ color: "#cfc6b0", fontSize: 13, letterSpacing: 2, marginBottom: 10 }}>
+          MUSIC VOLUME
+        </div>
+        <input type="range" min="0" max="1" step="0.01" value={musicVolume}
+          onChange={(e) => setMusicVolume(parseFloat(e.target.value))}
+          style={{ width: "100%", accentColor: "#d8a23f" }} />
+      </div>
+
+      <div style={{ width: 380, marginBottom: 46 }}>
+        <div style={{ color: "#cfc6b0", fontSize: 13, letterSpacing: 2, marginBottom: 10 }}>
+          GAME VOLUME (FOOTSTEPS)
+        </div>
+        <input type="range" min="0" max="1" step="0.01" value={sfxVolume}
+          onChange={(e) => setSfxVolume(parseFloat(e.target.value))}
+          style={{ width: "100%", accentColor: "#d8a23f" }} />
+      </div>
+
+      <MenuItem label="Back" onClick={onBack} />
+    </div>
+  );
+}
+
 export default function World() {
-  const [screen, setScreen] = useState("start"); // "start" | "game"
+  const [screen, setScreen] = useState("start"); // "start" | "intro" | "options" | "game"
   const [hasSave, setHasSave] = useState(false);
+  const [musicVolume, setMusicVolume] = useState(0.5);
+  const [sfxVolume, setSfxVolume] = useState(0.6);
+  const menuMusicRef = useRef(null);
+  const gameMusicRef = useRef(null);
   const [locationId, setLocationId] = useState("home");
   const [near, setNear] = useState(null);
   const [panel, setPanel] = useState(null);
@@ -615,6 +669,64 @@ export default function World() {
     if (!sessionId) return;
     writeSave({ sessionId, gameState, locationId, messages });
   }, [sessionId, gameState, locationId, messages]);
+
+  // Load saved audio settings once on mount (separate from the game save).
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("harlow_audio_v1");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (typeof parsed.musicVolume === "number") setMusicVolume(parsed.musicVolume);
+        if (typeof parsed.sfxVolume === "number") setSfxVolume(parsed.sfxVolume);
+      }
+    } catch (e) {}
+  }, []);
+
+  // Persist audio settings whenever they change.
+  useEffect(() => {
+    try {
+      localStorage.setItem("harlow_audio_v1", JSON.stringify({ musicVolume, sfxVolume }));
+    } catch (e) {}
+  }, [musicVolume, sfxVolume]);
+
+  // Keep both audio elements' volume in sync with the slider.
+  useEffect(() => {
+    if (menuMusicRef.current) menuMusicRef.current.volume = musicVolume;
+    if (gameMusicRef.current) gameMusicRef.current.volume = musicVolume;
+  }, [musicVolume]);
+
+  // Switch which track plays based on which screen we're on.
+  useEffect(() => {
+    const menu = menuMusicRef.current;
+    const game = gameMusicRef.current;
+    if (!menu || !game) return;
+    if (screen === "game") {
+      menu.pause();
+      game.play().catch(() => {});
+    } else {
+      game.pause();
+      menu.play().catch(() => {});
+    }
+  }, [screen]);
+
+  // Browsers block audio until a real user gesture -- start the menu track
+  // on the very first click or keypress anywhere on the page.
+  useEffect(() => {
+    function unlock() {
+      if (menuMusicRef.current && screen !== "game") {
+        menuMusicRef.current.play().catch(() => {});
+      }
+      window.removeEventListener("click", unlock);
+      window.removeEventListener("keydown", unlock);
+    }
+    window.addEventListener("click", unlock);
+    window.addEventListener("keydown", unlock);
+    return () => {
+      window.removeEventListener("click", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -783,8 +895,15 @@ export default function World() {
 
   return (
     <div style={{ width: "100vw", height: "100vh", background: "#0a0807" }}>
+      <audio ref={menuMusicRef} src="/audio/menu.mp3" loop preload="auto" />
+      <audio ref={gameMusicRef} src="/audio/game.mp3" loop preload="auto" />
       {screen === "start" && (
-        <StartScreen onNewGame={beginIntro} onLoadGame={loadGameFromMenu} hasSave={hasSave} />
+        <StartScreen onNewGame={beginIntro} onLoadGame={loadGameFromMenu}
+          onOptions={() => setScreen("options")} hasSave={hasSave} />
+      )}
+      {screen === "options" && (
+        <OptionsScreen musicVolume={musicVolume} setMusicVolume={setMusicVolume}
+          sfxVolume={sfxVolume} setSfxVolume={setSfxVolume} onBack={() => setScreen("start")} />
       )}
       {screen === "intro" && (
         <IntroSequence onComplete={actuallyStartNewGame} />
@@ -809,7 +928,7 @@ export default function World() {
     <AnimatedModel url="/models/car.glb" position={[-10.4, -1.0, 42.8]} scale={0.35} rotation={[0, Math.PI, 0]} />
   </Suspense>
 )}
-        <Player location={location} nearRef={nearRef} setNear={setNear} pausedRef={pausedRef} />
+        <Player location={location} nearRef={nearRef} setNear={setNear} pausedRef={pausedRef} sfxVolume={sfxVolume} />
         <PointerLockControls ref={controlsRef} />
         <EffectComposer>
           <Fisheye strength={0.1} />
