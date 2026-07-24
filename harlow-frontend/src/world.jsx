@@ -527,32 +527,60 @@ function IntroSequence({ onComplete }) {
   );
 }
 
+function MenuItem({ label, onClick, disabled }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <div
+      onClick={disabled ? undefined : onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        fontFamily: "monospace",
+        fontSize: 20,
+        letterSpacing: 4,
+        fontWeight: 700,
+        padding: "6px 10px",
+        marginBottom: 10,
+        color: disabled ? "#4a4438" : hover ? "#0d0b08" : "#cfc6b0",
+        background: hover && !disabled ? "#cfc6b0" : "transparent",
+        cursor: disabled ? "not-allowed" : "pointer",
+        textShadow: hover && !disabled ? "none" : "0 2px 12px rgba(0,0,0,0.95)",
+        transition: "background 0.08s, color 0.08s",
+        userSelect: "none",
+        width: "fit-content",
+      }}
+    >
+      {label}
+    </div>
+  );
+}
+
 function StartScreen({ onNewGame, onLoadGame, hasSave }) {
   return (
     <div style={{ width: "100vw", height: "100vh", position: "relative", overflow: "hidden",
-      display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column",
       fontFamily: "monospace" }}>
       <img src="/images/menubg.png" alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%",
-        objectFit: "cover", filter: "grayscale(15%) brightness(0.5)" }} />
-      <div style={{ position: "absolute", inset: 0, background: "rgba(10,8,7,0.35)" }} />
-      <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center" }}>
-      <div style={{ fontSize: 48, letterSpacing: 10, color: "#d8a23f", marginBottom: 8,
-        textShadow: "0 4px 20px rgba(0,0,0,0.9)" }}>HARLOW</div>
-      <div style={{ fontSize: 12, letterSpacing: 3, color: "#e8dcc0", marginBottom: 50,
-        textShadow: "0 2px 10px rgba(0,0,0,0.9)" }}>
+        objectFit: "cover", filter: "brightness(0.65) contrast(1.1)" }} />
+      <div style={{ position: "absolute", inset: 0,
+        background: "radial-gradient(ellipse at center, rgba(5,4,3,0.15) 0%, rgba(5,4,3,0.75) 100%)" }} />
+      <div style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.12, mixBlendMode: "overlay",
+        backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")" }} />
+
+      <div style={{ position: "absolute", top: "14%", left: 0, right: 0, textAlign: "center",
+        fontSize: 76, letterSpacing: 34, paddingLeft: 34, color: "#e8b64c", fontWeight: 700,
+        textShadow: "0 0 6px rgba(232,182,76,0.9), 0 0 22px rgba(216,130,30,0.55), 0 0 60px rgba(200,90,10,0.35), 0 3px 4px rgba(0,0,0,0.9)",
+        filter: "contrast(1.1)" }}>
+        HARLOW
+      </div>
+      <div style={{ position: "absolute", top: "calc(14% + 100px)", left: 0, right: 0, textAlign: "center",
+        fontSize: 11, letterSpacing: 6, color: "#9a8d70", textShadow: "0 2px 8px rgba(0,0,0,0.9)" }}>
         SOMETHING IS WRONG WITH THIS TOWN
       </div>
-      <button onClick={onNewGame} style={{ width: 260, marginBottom: 14, fontFamily: "monospace", fontSize: 14,
-        letterSpacing: 2, padding: "14px 20px", background: "#d8a23f", color: "#15120d",
-        border: "none", borderRadius: 4, cursor: "pointer" }}>
-        NEW GAME
-      </button>
-      <button onClick={onLoadGame} disabled={!hasSave} style={{ width: 260, fontFamily: "monospace", fontSize: 14,
-        letterSpacing: 2, padding: "14px 20px", background: "rgba(10,8,7,0.5)",
-        color: hasSave ? "#e8dcc0" : "#5a5142", border: "1px solid #3a2f1e", borderRadius: 4,
-        cursor: hasSave ? "pointer" : "not-allowed" }}>
-        LOAD GAME
-      </button>
+
+      <div style={{ position: "absolute", top: "52%", left: "50%", transform: "translateX(-40%)" }}>
+        {hasSave && <MenuItem label="Continue" onClick={onLoadGame} />}
+        <MenuItem label="New Game" onClick={onNewGame} />
+        <MenuItem label="Load Game" onClick={onLoadGame} disabled={!hasSave} />
       </div>
     </div>
   );
