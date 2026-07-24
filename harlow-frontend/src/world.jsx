@@ -456,6 +456,131 @@ function ChatOverlay({ character, sessionId, messages, setMessages, onState, onC
   );
 }
 
+const INTRO_PANELS = [
+  { art: "town",   caption: "HARLOW. POPULATION 800. ONE ROAD IN. ONE ROAD OUT." },
+  { art: "poster", caption: "THIRTY-ONE PEOPLE HAVE VANISHED IN THE LAST EIGHTEEN MONTHS. OFFICIALLY, THEY JUST LEFT." },
+  { art: "badge",  caption: "THREE INVESTIGATORS CAME BEFORE YOU. ONE QUIT. ONE TRANSFERRED. ONE NEVER LEFT." },
+  { art: "car",    caption: "YOU'RE THE NEW DEPUTY. IT LOOKS LIKE A QUIET POSTING." },
+  { art: "window", caption: "EVERYONE HERE IS FRIENDLY. EVERYONE HERE IS HIDING SOMETHING. YOU HAVE SEVEN DAYS TO FIND OUT WHICH IS TRUE." },
+  { art: "fade",   caption: "WHATEVER HAPPENS NEXT, THEY'LL SAY IT WAS ROUTINE." },
+];
+
+function IntroArt({ type }) {
+  const vb = "0 0 400 250";
+  if (type === "town") {
+    return (
+      <svg viewBox={vb} style={{ width: "100%", height: "100%" }}>
+        <rect width="400" height="250" fill="#0d0d10" />
+        <circle cx="330" cy="46" r="24" fill="#cfcabb" opacity="0.85" />
+        <rect x="0" y="150" width="400" height="100" fill="#050506" />
+        {[20, 60, 100, 150, 200, 250, 290, 330, 365].map((x, i) => (
+          <rect key={i} x={x} y={150 - (18 + (i % 3) * 22)} width="28" height={18 + (i % 3) * 22 + 100} fill="#111114" />
+        ))}
+      </svg>
+    );
+  }
+  if (type === "poster") {
+    return (
+      <svg viewBox={vb} style={{ width: "100%", height: "100%" }}>
+        <rect width="400" height="250" fill="#0a0a0c" />
+        <rect x="140" y="55" width="120" height="150" fill="#17171a" stroke="#3a3a3d" strokeWidth="2" />
+        <text x="200" y="90" textAnchor="middle" fill="#8a8a80" fontSize="13" fontFamily="monospace" letterSpacing="2">MISSING</text>
+        <rect x="160" y="105" width="80" height="60" fill="#232326" />
+        <line x1="148" y1="130" x2="252" y2="190" stroke="#050506" strokeWidth="6" />
+        <line x1="252" y1="130" x2="148" y2="190" stroke="#050506" strokeWidth="6" />
+      </svg>
+    );
+  }
+  if (type === "badge") {
+    return (
+      <svg viewBox={vb} style={{ width: "100%", height: "100%" }}>
+        <rect width="400" height="250" fill="#0a0a0c" />
+        <polygon points="200,55 216,98 262,98 225,124 239,168 200,142 161,168 175,124 138,98 184,98"
+          fill="#6a6350" opacity="0.9" />
+        <circle cx="200" cy="112" r="18" fill="#0a0a0c" />
+      </svg>
+    );
+  }
+  if (type === "car") {
+    return (
+      <svg viewBox={vb} style={{ width: "100%", height: "100%" }}>
+        <rect width="400" height="250" fill="#0a0a0c" />
+        <rect x="90" y="150" width="220" height="45" rx="10" fill="#101012" />
+        <rect x="130" y="118" width="120" height="42" rx="8" fill="#131316" />
+        <circle cx="140" cy="200" r="16" fill="#050506" />
+        <circle cx="260" cy="200" r="16" fill="#050506" />
+        <circle cx="300" cy="163" r="9" fill="#d8c9a0" opacity="0.9" />
+        <circle cx="300" cy="163" r="18" fill="#d8c9a0" opacity="0.2" />
+      </svg>
+    );
+  }
+  if (type === "window") {
+    return (
+      <svg viewBox={vb} style={{ width: "100%", height: "100%" }}>
+        <rect width="400" height="250" fill="#08080a" />
+        <rect x="40" y="15" width="320" height="220" fill="#0f0f12" />
+        <rect x="178" y="65" width="44" height="60" fill="#d8a23f" opacity="0.85" />
+        <line x1="200" y1="65" x2="200" y2="125" stroke="#0a0a0c" strokeWidth="2" />
+        <line x1="178" y1="95" x2="222" y2="95" stroke="#0a0a0c" strokeWidth="2" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox={vb} style={{ width: "100%", height: "100%" }}>
+      <rect width="400" height="250" fill="#000000" />
+    </svg>
+  );
+}
+
+function IntroSequence({ onComplete }) {
+  const [i, setI] = useState(0);
+  const panel = INTRO_PANELS[i];
+  const isLast = i === INTRO_PANELS.length - 1;
+
+  function advance() {
+    if (isLast) onComplete();
+    else setI((n) => n + 1);
+  }
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.code === "Space" || e.code === "Enter") {
+        e.preventDefault();
+        advance();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+  return (
+    <div onClick={advance} style={{ width: "100vw", height: "100vh", background: "#000",
+      position: "relative", cursor: "pointer", overflow: "hidden", fontFamily: "monospace" }}>
+      <div style={{ position: "absolute", inset: 0 }}>
+        <IntroArt type={panel.art} />
+      </div>
+      <div style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.16, mixBlendMode: "overlay",
+        backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")" }} />
+      <div style={{ position: "absolute", inset: 0, pointerEvents: "none",
+        boxShadow: "inset 0 0 160px 60px rgba(0,0,0,0.85)" }} />
+      <div style={{ position: "absolute", top: 24, left: 24, right: 24, maxWidth: 560,
+        background: "#e8dcc0", border: "3px solid #000", padding: "10px 14px",
+        color: "#0a0a0a", fontWeight: 700, fontSize: 14, letterSpacing: 0.5, lineHeight: 1.4 }}>
+        {panel.caption}
+      </div>
+      <div style={{ position: "absolute", bottom: 24, right: 28, color: "#8a7d63", fontSize: 11, letterSpacing: 2 }}>
+        {isLast ? "CLICK OR PRESS ENTER TO BEGIN" : "CLICK OR PRESS SPACE TO CONTINUE"}
+      </div>
+      <div style={{ position: "absolute", bottom: 24, left: 28, display: "flex", gap: 6 }}>
+        {INTRO_PANELS.map((_, idx) => (
+          <div key={idx} style={{ width: 6, height: 6, borderRadius: 3,
+            background: idx === i ? "#d8a23f" : "#3a2f1e" }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function StartScreen({ onNewGame, onLoadGame, hasSave }) {
   return (
     <div style={{ width: "100vw", height: "100vh", background: "#0a0807",
@@ -535,23 +660,13 @@ export default function World() {
     setPanel(null);
   }
 
-  async function startNewGame() {
+  function startNewGame() {
     if (!window.confirm("Start a new game? This clears your current save.")) return;
-    try {
-      const data = await newSession();
-      setSessionId(data.session_id);
-      setGameState(data.state);
-      setMessages({});
-      setLocationId("home");
-      setEnding(null);
-      writeSave({ sessionId: data.session_id, gameState: data.state, locationId: "home", messages: {} });
-      setHasSave(true);
-    } catch (e) {
-      console.error("New game failed:", e);
-    }
+    setEnding(null);
+    setScreen("intro");
   }
 
-  async function startNewGameFromMenu() {
+  async function actuallyStartNewGame() {
     try {
       const data = await newSession();
       setSessionId(data.session_id);
@@ -565,6 +680,11 @@ export default function World() {
     } catch (e) {
       console.error("New game failed:", e);
     }
+  }
+
+  function beginIntro() {
+    setEnding(null);
+    setScreen("intro");
   }
 
   function loadGameFromMenu() {
@@ -682,9 +802,13 @@ export default function World() {
 
   return (
     <div style={{ width: "100vw", height: "100vh", background: "#0a0807" }}>
-      {screen === "start" ? (
-        <StartScreen onNewGame={startNewGameFromMenu} onLoadGame={loadGameFromMenu} hasSave={hasSave} />
-      ) : (
+      {screen === "start" && (
+        <StartScreen onNewGame={beginIntro} onLoadGame={loadGameFromMenu} hasSave={hasSave} />
+      )}
+      {screen === "intro" && (
+        <IntroSequence onComplete={actuallyStartNewGame} />
+      )}
+      {screen === "game" && (
       <>
       <Canvas camera={{ position: location.spawn, fov: 75 }}>
       <ambientLight intensity={location.ambient} />
@@ -810,7 +934,12 @@ export default function World() {
     color: "#e8dcc0", fontFamily: "monospace", textAlign: "center", padding: 40 }}>
     <div style={{ fontSize: 12, letterSpacing: 3, color: "#8a7d63", marginBottom: 12 }}>ENDING REACHED</div>
     <div style={{ fontSize: 28, color: "#d8a23f", marginBottom: 20 }}>{(ending.id || "").toUpperCase()}</div>
-    <div style={{ fontSize: 16, lineHeight: 1.7, maxWidth: 640 }}>{ending.scene}</div>
+    <div style={{ fontSize: 16, lineHeight: 1.7, maxWidth: 640, marginBottom: 30 }}>{ending.scene}</div>
+    <button onClick={() => { setEnding(null); setScreen("start"); }} style={{ fontFamily: "monospace", fontSize: 13,
+      letterSpacing: 2, padding: "12px 22px", background: "transparent", color: "#d8a23f",
+      border: "1px solid #3a2f1e", borderRadius: 4, cursor: "pointer" }}>
+      MAIN MENU
+    </button>
   </div>
 )}
       </>
