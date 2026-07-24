@@ -251,21 +251,23 @@ function AnimatedModel({ url, position, scale = 1, rotation = [0, 0, 0] }) {
   return <primitive object={scene} position={position} scale={scale} rotation={rotation} />;
 }
 
-function playFootstepSound(volume) {
-  try {
-    const a = new Audio("/audio/footsteps.mp3");
-    a.volume = volume;
-    a.play().catch(() => {});
-  } catch (e) {}
-}
-
 function Player({ location, nearRef, setNear, pausedRef, sfxVolume }) {
   const { camera, scene } = useThree();
   const keys = useRef({});
   const ray = useRef(new THREE.Raycaster());
   const bobPhase = useRef(0);
   const bobAmount = useRef(0);
-  const lastStepIndex = useRef(0);
+  const lastStepIndex = useRef(-1);
+  const wasMoving = useRef(false);
+  const stepAudio = useRef(null);
+
+  useEffect(() => {
+    stepAudio.current = new Audio("/audio/footsteps.mp3");
+    stepAudio.current.loop = false;
+    return () => {
+      if (stepAudio.current) stepAudio.current.pause();
+    };
+  }, []);
 
   useEffect(() => {
     const down = (e) => (keys.current[e.code] = true);
@@ -338,9 +340,22 @@ function Player({ location, nearRef, setNear, pausedRef, sfxVolume }) {
         const stepIndex = Math.floor(bobPhase.current / Math.PI);
         if (stepIndex !== lastStepIndex.current) {
           lastStepIndex.current = stepIndex;
-          playFootstepSound(sfxVolume ?? 0.6);
+          const audio = stepAudio.current;
+          if (audio) {
+            audio.currentTime = 0;
+            audio.volume = sfxVolume ?? 0.6;
+            audio.play().catch(() => {});
+          }
         }
+      } else if (wasMoving.current) {
+        const audio = stepAudio.current;
+        if (audio) {
+          audio.pause();
+          audio.currentTime = 0;
+        }
+        lastStepIndex.current = -1;
       }
+      wasMoving.current = moving;
       const bob = Math.sin(bobPhase.current) * BOB_AMP * bobAmount.current;
       camera.position.y = baseY + bob;
     }
