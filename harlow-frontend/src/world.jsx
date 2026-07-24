@@ -457,78 +457,24 @@ function ChatOverlay({ character, sessionId, messages, setMessages, onState, onC
 }
 
 const INTRO_PANELS = [
-  { art: "town",   caption: "HARLOW. POPULATION 800. ONE ROAD IN. ONE ROAD OUT." },
-  { art: "poster", caption: "THIRTY-ONE PEOPLE HAVE VANISHED IN THE LAST EIGHTEEN MONTHS. OFFICIALLY, THEY JUST LEFT." },
-  { art: "badge",  caption: "THREE INVESTIGATORS CAME BEFORE YOU. ONE QUIT. ONE TRANSFERRED. ONE NEVER LEFT." },
-  { art: "car",    caption: "YOU'RE THE NEW DEPUTY. IT LOOKS LIKE A QUIET POSTING." },
-  { art: "window", caption: "EVERYONE HERE IS FRIENDLY. EVERYONE HERE IS HIDING SOMETHING. YOU HAVE SEVEN DAYS TO FIND OUT WHICH IS TRUE." },
-  { art: "fade",   caption: "WHATEVER HAPPENS NEXT, THEY'LL SAY IT WAS ROUTINE." },
+  { img: "/images/town.png",
+    caption: "HARLOW. POPULATION 800. SURROUNDED BY FOREST ON THREE SIDES. ONE ROAD IN. ONE ROAD OUT. FOR YEARS IT HAS LOOKED LIKE EVERY QUIET TOWN YOU'VE EVER DRIVEN PAST WITHOUT A SECOND GLANCE." },
+  { img: "/images/poster.png",
+    caption: "OVER THE LAST EIGHTEEN MONTHS, THIRTY-ONE PEOPLE HAVE VANISHED FROM HARLOW. NO BODIES. NO STRUGGLE. NO PATTERN ANYONE OFFICIAL WILL ACKNOWLEDGE. OFFICIALLY, PEOPLE JUST LEAVE SMALL TOWNS SOMETIMES." },
+  { img: "/images/badge.png",
+    caption: "THREE INVESTIGATORS WERE SENT TO HARLOW BEFORE YOU. ONE QUIT WITHIN A WEEK. ONE REQUESTED A TRANSFER AND NEVER LOOKED BACK. THE THIRD SIMPLY DISAPPEARED -- JUST LIKE THE THIRTY-ONE BEFORE THEM." },
+  { img: "/images/station.png",
+    caption: "YOU'VE JUST BEEN APPOINTED AS HARLOW'S NEW SHERIFF'S DEPUTY. IT'S BEEN FRAMED AS A ROUTINE POSTING TO A QUIET TOWN. YOU DON'T YET KNOW THAT THE LAST DEPUTY WAS THE THIRD INVESTIGATOR." },
+  { img: "/images/window.png",
+    caption: "EVERYONE IN HARLOW IS FRIENDLY. EVERYONE OFFERS COFFEE, SMALL TALK, A WARM WELCOME. AND EVERYONE, IN THEIR OWN WAY, IS HIDING SOMETHING. YOU HAVE SEVEN DAYS TO FIND OUT WHAT THAT IS -- BEFORE IT FINDS YOU FIRST." },
+  { img: "/images/fade.png",
+    caption: "WHATEVER HAPPENS TO YOU IN THE NEXT SEVEN DAYS, THE TOWN WILL HAVE AN EXPLANATION READY. SMALL TOWN. PEOPLE LEAVE. NOTHING SINISTER. IT ALWAYS DOES." },
 ];
 
-function IntroArt({ type }) {
-  const vb = "0 0 400 250";
-  if (type === "town") {
-    return (
-      <svg viewBox={vb} style={{ width: "100%", height: "100%" }}>
-        <rect width="400" height="250" fill="#0d0d10" />
-        <circle cx="330" cy="46" r="24" fill="#cfcabb" opacity="0.85" />
-        <rect x="0" y="150" width="400" height="100" fill="#050506" />
-        {[20, 60, 100, 150, 200, 250, 290, 330, 365].map((x, i) => (
-          <rect key={i} x={x} y={150 - (18 + (i % 3) * 22)} width="28" height={18 + (i % 3) * 22 + 100} fill="#111114" />
-        ))}
-      </svg>
-    );
-  }
-  if (type === "poster") {
-    return (
-      <svg viewBox={vb} style={{ width: "100%", height: "100%" }}>
-        <rect width="400" height="250" fill="#0a0a0c" />
-        <rect x="140" y="55" width="120" height="150" fill="#17171a" stroke="#3a3a3d" strokeWidth="2" />
-        <text x="200" y="90" textAnchor="middle" fill="#8a8a80" fontSize="13" fontFamily="monospace" letterSpacing="2">MISSING</text>
-        <rect x="160" y="105" width="80" height="60" fill="#232326" />
-        <line x1="148" y1="130" x2="252" y2="190" stroke="#050506" strokeWidth="6" />
-        <line x1="252" y1="130" x2="148" y2="190" stroke="#050506" strokeWidth="6" />
-      </svg>
-    );
-  }
-  if (type === "badge") {
-    return (
-      <svg viewBox={vb} style={{ width: "100%", height: "100%" }}>
-        <rect width="400" height="250" fill="#0a0a0c" />
-        <polygon points="200,55 216,98 262,98 225,124 239,168 200,142 161,168 175,124 138,98 184,98"
-          fill="#6a6350" opacity="0.9" />
-        <circle cx="200" cy="112" r="18" fill="#0a0a0c" />
-      </svg>
-    );
-  }
-  if (type === "car") {
-    return (
-      <svg viewBox={vb} style={{ width: "100%", height: "100%" }}>
-        <rect width="400" height="250" fill="#0a0a0c" />
-        <rect x="90" y="150" width="220" height="45" rx="10" fill="#101012" />
-        <rect x="130" y="118" width="120" height="42" rx="8" fill="#131316" />
-        <circle cx="140" cy="200" r="16" fill="#050506" />
-        <circle cx="260" cy="200" r="16" fill="#050506" />
-        <circle cx="300" cy="163" r="9" fill="#d8c9a0" opacity="0.9" />
-        <circle cx="300" cy="163" r="18" fill="#d8c9a0" opacity="0.2" />
-      </svg>
-    );
-  }
-  if (type === "window") {
-    return (
-      <svg viewBox={vb} style={{ width: "100%", height: "100%" }}>
-        <rect width="400" height="250" fill="#08080a" />
-        <rect x="40" y="15" width="320" height="220" fill="#0f0f12" />
-        <rect x="178" y="65" width="44" height="60" fill="#d8a23f" opacity="0.85" />
-        <line x1="200" y1="65" x2="200" y2="125" stroke="#0a0a0c" strokeWidth="2" />
-        <line x1="178" y1="95" x2="222" y2="95" stroke="#0a0a0c" strokeWidth="2" />
-      </svg>
-    );
-  }
+function IntroArt({ src }) {
   return (
-    <svg viewBox={vb} style={{ width: "100%", height: "100%" }}>
-      <rect width="400" height="250" fill="#000000" />
-    </svg>
+    <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover",
+      filter: "grayscale(35%) contrast(1.15) brightness(0.8)" }} />
   );
 }
 
@@ -557,15 +503,15 @@ function IntroSequence({ onComplete }) {
     <div onClick={advance} style={{ width: "100vw", height: "100vh", background: "#000",
       position: "relative", cursor: "pointer", overflow: "hidden", fontFamily: "monospace" }}>
       <div style={{ position: "absolute", inset: 0 }}>
-        <IntroArt type={panel.art} />
+        <IntroArt src={panel.img} />
       </div>
       <div style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.16, mixBlendMode: "overlay",
         backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")" }} />
       <div style={{ position: "absolute", inset: 0, pointerEvents: "none",
         boxShadow: "inset 0 0 160px 60px rgba(0,0,0,0.85)" }} />
-      <div style={{ position: "absolute", top: 24, left: 24, right: 24, maxWidth: 560,
-        background: "#e8dcc0", border: "3px solid #000", padding: "10px 14px",
-        color: "#0a0a0a", fontWeight: 700, fontSize: 14, letterSpacing: 0.5, lineHeight: 1.4 }}>
+      <div style={{ position: "absolute", top: 28, left: 28, right: 28, maxWidth: 680,
+        background: "#e8dcc0", border: "3px solid #000", padding: "16px 20px",
+        color: "#0a0a0a", fontWeight: 700, fontSize: 18, letterSpacing: 0.3, lineHeight: 1.55 }}>
         {panel.caption}
       </div>
       <div style={{ position: "absolute", bottom: 24, right: 28, color: "#8a7d63", fontSize: 11, letterSpacing: 2 }}>
@@ -583,11 +529,17 @@ function IntroSequence({ onComplete }) {
 
 function StartScreen({ onNewGame, onLoadGame, hasSave }) {
   return (
-    <div style={{ width: "100vw", height: "100vh", background: "#0a0807",
+    <div style={{ width: "100vw", height: "100vh", position: "relative", overflow: "hidden",
       display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column",
       fontFamily: "monospace" }}>
-      <div style={{ fontSize: 48, letterSpacing: 10, color: "#d8a23f", marginBottom: 8 }}>HARLOW</div>
-      <div style={{ fontSize: 12, letterSpacing: 3, color: "#8a7d63", marginBottom: 50 }}>
+      <img src="/images/menubg.png" alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%",
+        objectFit: "cover", filter: "grayscale(15%) brightness(0.5)" }} />
+      <div style={{ position: "absolute", inset: 0, background: "rgba(10,8,7,0.35)" }} />
+      <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <div style={{ fontSize: 48, letterSpacing: 10, color: "#d8a23f", marginBottom: 8,
+        textShadow: "0 4px 20px rgba(0,0,0,0.9)" }}>HARLOW</div>
+      <div style={{ fontSize: 12, letterSpacing: 3, color: "#e8dcc0", marginBottom: 50,
+        textShadow: "0 2px 10px rgba(0,0,0,0.9)" }}>
         SOMETHING IS WRONG WITH THIS TOWN
       </div>
       <button onClick={onNewGame} style={{ width: 260, marginBottom: 14, fontFamily: "monospace", fontSize: 14,
@@ -596,11 +548,12 @@ function StartScreen({ onNewGame, onLoadGame, hasSave }) {
         NEW GAME
       </button>
       <button onClick={onLoadGame} disabled={!hasSave} style={{ width: 260, fontFamily: "monospace", fontSize: 14,
-        letterSpacing: 2, padding: "14px 20px", background: "transparent",
-        color: hasSave ? "#e8dcc0" : "#4a4030", border: "1px solid #3a2f1e", borderRadius: 4,
+        letterSpacing: 2, padding: "14px 20px", background: "rgba(10,8,7,0.5)",
+        color: hasSave ? "#e8dcc0" : "#5a5142", border: "1px solid #3a2f1e", borderRadius: 4,
         cursor: hasSave ? "pointer" : "not-allowed" }}>
         LOAD GAME
       </button>
+      </div>
     </div>
   );
 }
